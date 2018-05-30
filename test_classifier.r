@@ -16,6 +16,7 @@ set.seed(1)
 library(data.table)
 library(text2vec)
 library(keras)
+library(irr)
 library(ggplot2)
 # --------------------
 
@@ -25,7 +26,6 @@ library(ggplot2)
 
 # input file
 inFileSea = './Seattle_Police_Department_911_Incident_Response.csv'
-inFileBal = './911_Police_Calls_for_Service.csv'
 
 # output files
 graphFile = './descriptive_analysis.pdf'
@@ -37,7 +37,6 @@ graphFile = './descriptive_analysis.pdf'
 
 # load all files
 dataSea = fread(inFileSea)
-dataBal = fread(inFileBal) # doesn't have event classifications
 
 # rename
 setnames(dataSea, c('record_id', 'event_number', 'general_offense_number',
@@ -46,14 +45,10 @@ setnames(dataSea, c('record_id', 'event_number', 'general_offense_number',
 				'zone', 'census_tract', 'longitude', 'latitude', 'location',
 				'initial_type_description', 'initial_type_subgroup',
 				'initial_type_group', 'at_scene_time'))
-setnames(dataBal, c('record_id', 'call_date_time', 'priority', 'district',
- 				'initial_type_description', 'event_number', 'address', 'location'))
 
 # subset
 x = dataSea[initial_type_group!='']$initial_type_description
 y = dataSea[initial_type_group!='']$initial_type_group
-newdata_x = c(dataSea[initial_type_group=='']$initial_type_group,
-							dataBal$initial_type_description)
 
 # make completely random y for the "impossible test"
 # y = y[sample(1:length(y), replace=FALSE)]
@@ -87,12 +82,27 @@ y_onehot = to_categorical(y_index)
 # ------------------------------------------------------
 # Hold-outs
 random = runif(length(x))
-test_idx = random < .2
+test_idx = random < .995
+# test_idx = y=='SUSPICIOUS CIRCUMSTANCES' # the "inference test"
+# test_idx = y %in% c('SUSPICIOUS CIRCUMSTANCES','TRAFFIC RELATED CALLS') # the "impossible inference test"
 test_x = dtm_x[test_idx,]
 test_y = y_onehot[test_idx,]
 train_x = dtm_x[!test_idx,]
 train_y = y_onehot[!test_idx,]
 # ------------------------------------------------------
+
+
+# ------------------------------------------------------------
+# Balance the training data
+
+# resample to acheive class balance
+balanced = data.table(y[!test_idx])
+balanced[, freq:=.N, by='V1']
+undersample_idx = sample(1:nrow(balanced), size=nrow(train_y),
+										replace=TRUE, prob=1/balanced$freq)
+train_x = train_x[undersample_idx,]
+train_y = train_y[undersample_idx,]
+# ------------------------------------------------------------
 
 
 # ------------------------------------------------------
@@ -125,9 +135,13 @@ is_preds = model %>% predict_classes(train_x)
 # -----------------------------------------------------------------
 # Evaluate OOS PV
 
-# mean accuracy
+# concordance
 mean(oos_preds==y_index[test_idx])
-mean(is_preds==y_index[!test_idx])
+mean(is_preds==y_index[!test_idx][undersample_idx])
+
+# kappa
+kappa2(data.table(oos_preds, y_index[test_idx]))$value
+kappa2(data.table(is_preds, y_index[!test_idx][undersample_idx]))$value
 
 # set up to graph
 test_eval = y_codebook[data.table(y_index=oos_preds), on='y_index']
@@ -141,7 +155,7 @@ graphDataTest[, pct:=N/sum(N), by='truth']
 # set up to graph
 train_eval = y_codebook[data.table(y_index=is_preds), on='y_index']
 setnames(train_eval, c('pred_text','pred'))
-train_eval[, truth:=y[!test_idx]]
+train_eval[, truth:=y[!test_idx][undersample_idx]]
 
 # collapse
 graphDataTrain = train_eval[, .N, by=c('pred_text', 'truth')]
@@ -149,5 +163,8 @@ graphDataTrain[, pct:=N/sum(N), by='truth']
 
 # graph
 ggplot(data=graphDataTest, aes(y=pred_text, x=truth, fill=pct)) +
-	geom_tile()
+	geom_tile() +
+	labs(y='Predicted', x='Truth') +
+	theme_minimal() +
+	theme(axis.text.x = element_text(angle = 60, hjust = 1))
 # -----------------------------------------------------------------
