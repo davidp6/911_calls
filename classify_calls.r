@@ -67,8 +67,7 @@ for(c in c('Sea', 'Bal')) get(paste0('data', c))[, city:=c]
 data = rbind(dataSea, dataBal, fill=TRUE)
 
 # store call descriptions (even the ones that already have categories)
-xname = 'initial_type_description'
-x = data[[xname]]
+x = data$initial_type_description
 # ---------------------------------------------------------------
 
 
@@ -111,32 +110,6 @@ setnames(y_codebook, 'y', 'initial_type_group_predicted')
 data = merge(data, y_codebook, 'y_index', all.x=TRUE)
 data$y_index = NULL
 # ----------------------------------------------------
-
-
-# -----------------------------------------------------------
-# Manually assess classification for reasonableness
-
-# traffic
-print('Calls classified as TRAFFIC RELATED CALLS:')
-yname = 'initial_type_group_predicted'
-t = table(data[get(yname)=='TRAFFIC RELATED CALLS'][[xname]])
-t[order(t)]
-
-# animals
-print('Calls classified as ANIMAL COMPLAINTS:')
-t = table(data[get(yname)=='ANIMAL COMPLAINTS'][[xname]])
-t[order(t)]
-
-# assault
-print('Calls classified as ASSAULTS:')
-t = table(data[get(yname)=='ASSAULTS'][[xname]])
-t[order(t)]
-
-# crisis
-print('Calls classified as GUN CALLS:')
-t = table(data[get(yname)=='GUN CALLS'][[xname]])
-t[order(t)]
-# -----------------------------------------------------------
 
 
 # ---------------------
