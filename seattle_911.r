@@ -1,11 +1,14 @@
-# ----------------------------------------------
+# --------------------------------------------------------------------
 # David Phillips
 #
 # 5/17/2018
-# Descriptive analysis of 911 calls in the Seattle area
-# Source: https://data.seattle.gov/Public-Safety/Seattle-Police-Department-911-Incident-Response/3k2p-39jp
+# Descriptive analysis of 911 calls, classified using a neural network
+# Source: https://data.seattle.gov/Public-Safety/
 # The working directory should be the same as the downloaded data
-# ----------------------------------------------
+# Outputs:
+# - A pdf file of graphs and statistics
+# See fit_classifier.r and classify_calls.r for details on neural net
+# --------------------------------------------------------------------
 
 
 # --------------------
@@ -21,18 +24,15 @@ library(gridExtra)
 # --------------------
 
 
-# ---------------------------------------------------------------
+# ---------------------------------------
 # Files and directories
 
 # input file
-inFileSea = './Seattle_Police_Department_911_Incident_Response.csv'
-inFileBal = './911_Police_Calls_for_Service.csv'
-inFileLA = './LAPD_Calls_for_Service_2017.csv'
-inFileDet = './DPD__911_Calls_for_Service__September_20__2016_-_Present.csv'
+inFile = './classified_data.rds'
 
 # output files
 graphFile = './descriptive_analysis.pdf'
-# ---------------------------------------------------------------
+# ---------------------------------------
 
 
 # ---------------------------------------------------------------
