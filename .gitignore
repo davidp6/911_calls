@@ -4,3 +4,4 @@
 *.rds
 *.rdata
 .Rapp.history
+*.DS_Store
