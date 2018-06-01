@@ -1,15 +1,14 @@
 # ----------------------------------------------------------------------------
 # David Phillips
 #
-# 5/29/2018
-# Fit a neural network to the Seattle data to enable classification of other calls
-# Source: https://data.seattle.gov/Public-Safety/Seattle-Police-Department-911-Incident-Response/3k2p-39jp
+# 5/31/2018
+# Take a neural network from the Seattle data and use it to classify unlabeled calls
 # The working directory should be the root of this repo
 # The downloaded data should be in the root of this repo (but not committed to the remote!)
 #
-# This saves an rdata file with two objects: model and vectorizer
-# The model contains the neural net, the vectorizer is a text2vec object to help vectorize new text
-# See classify_calls.r for application of results
+# Outputs: A feather file with one data.table
+# - data 			The appended data with predicted classes
+# See fit_classifier.r for info on how the model was fit
 # ----------------------------------------------------------------------------
 
 
@@ -20,19 +19,22 @@ set.seed(1)
 library(data.table)
 library(text2vec)
 library(keras)
-library(ggplot2)
+library(feather)
 # --------------------
 
 
 # ---------------------------------------------------------------
 # Files and directories
 
-# input file
+# input files
 inFileSea = './Seattle_Police_Department_911_Incident_Response.csv'
 inFileBal = './911_Police_Calls_for_Service.csv'
 
+# model file
+modelFile = './model_fit.rdata'
+
 # output files
-graphFile = './descriptive_analysis.pdf'
+outFile = './classified_data.rds'
 # ---------------------------------------------------------------
 
 
@@ -45,113 +47,101 @@ dataBal = fread(inFileBal) # doesn't have event classifications
 
 # rename
 setnames(dataSea, c('record_id', 'event_number', 'general_offense_number',
-				'clearance_code', 'clearance_description', 'clearance_subgroup',
-				'clearance_group', 'call_date_time', 'address', 'district',
-				'zone', 'census_tract', 'longitude', 'latitude', 'location',
-				'initial_type_description', 'initial_type_subgroup',
-				'initial_type_group', 'at_scene_time'))
+		'clearance_code', 'clearance_description', 'clearance_subgroup',
+		'clearance_group', 'call_date_time', 'address', 'district',
+		'zone', 'census_tract', 'longitude', 'latitude', 'location',
+		'initial_type_description', 'initial_type_subgroup',
+		'initial_type_group', 'at_scene_time'))
 setnames(dataBal, c('record_id', 'call_date_time', 'priority', 'district',
- 				'initial_type_description', 'event_number', 'address', 'location'))
+		'initial_type_description', 'event_number', 'address', 'location'))
 
-# subset
-x = dataSea[initial_type_group!='']$initial_type_description
-y = dataSea[initial_type_group!='']$initial_type_group
-unlabeled_x = c(dataSea[initial_type_group=='']$initial_type_group,
-							dataBal$initial_type_description)
+# handle variable classes
+for(v in names(dataSea)) {
+	if (class(dataSea[[v]])!='character') {
+		dataSea[, (v):=as.character(get(v))]
+} }
+
+# identify cities
+for(c in c('Sea', 'Bal')) get(paste0('data', c))[, city:=c]
+
+# rbind
+data = rbind(dataSea, dataBal, fill=TRUE)
+
+# store call descriptions (even the ones that already have categories)
+xname = 'initial_type_description'
+x = data[[xname]]
 # ---------------------------------------------------------------
 
 
-# -------------------------------------------------
+# ------------------------------------------
+# Load the model object
+
+# load
+load(modelFile)
+
+# "unserialize" the model object
+# (to pass it back to tensorFlow)
+model = unserialize_model(serialized_model)
+# ------------------------------------------
+
+
+# ---------------------------------------------------------------
 # Vectorize text
 
 # make x word index
-it_x = itoken(x, preprocessor = tolower,
-             tokenizer = word_tokenizer)
-word_index = create_vocabulary(it_x)
+it_x = itoken(x, preprocessor=tolower, tokenizer=word_tokenizer)
 
 # make x word matrix
-vectorizer = vocab_vectorizer(word_index)
+# (based on "vectorizer" from the labeled data to only use available words)
 dtm_x = create_dtm(it_x, vectorizer)
-
-# make y word index
-y_index = as.numeric(as.factor(y))
-y_codebook = unique(data.table(y, y_index))
-
-# make y word matrix
-y_onehot = to_categorical(y_index)
-
-# make unlabeled x word index based on labeled x word index
-it_ux = itoken(unlabeled_x, preprocessor = tolower,
-             tokenizer = word_tokenizer)
-
-# make x word matrix
-dtm_x_unlabeled = create_dtm(it_ux, vectorizer)
-# -------------------------------------------------
+# ---------------------------------------------------------------
 
 
-# ------------------------------------------------------------
-# Balance the training data
-
-# resample to acheive class balance
-balanced = data.table(y)
-balanced[, freq:=.N, by='y']
-resample_idx = sample(1:nrow(balanced), size=length(y),
-										replace=TRUE, prob=1/balanced$freq)
-# resample_idx = sample(1:nrow(balanced), size=10000,
-#										replace=TRUE, prob=1/balanced$freq) # smaller for speed
-x_balanced = dtm_x[resample_idx,]
-y_balanced = y_onehot[resample_idx,]
-# ------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------
-# Fit model
-
-# create model
-model <- keras_model_sequential()
-model %>%
-  layer_dense(units = 256, activation = "relu",
-			input_shape = ncol(x_balanced)) %>%
-  layer_dropout(rate = 0.4) %>%
-  layer_dense(units = 128, activation = "relu") %>%
-  layer_dropout(rate = 0.3) %>%
-  layer_dense(units = ncol(y_balanced), activation = "softmax")
-
-# compile model
-model %>% compile(
-  optimizer = "rmsprop",
-  loss = "categorical_crossentropy",
-  metrics = c("accuracy")
-)
-
-# fit model (note: the fit function clashes between text2vec and keras)
-model %>% keras::fit(x_balanced, y_balanced, epochs = 4, batch_size = 512)
+# ----------------------------------------------------
+# Extract predictions from model
 
 # predict among unlabeled data
-oos_preds = model %>% predict_classes(dtm_x_unlabeled)
-# ------------------------------------------------------------------------
+# (using Keras model object)
+oos_preds = model %>% predict_classes(dtm_x)
+
+# append to data
+data[, y_index:=oos_preds]
+
+# decode predictions
+setnames(y_codebook, 'y', 'initial_type_group_predicted')
+data = merge(data, y_codebook, 'y_index', all.x=TRUE)
+data$y_index = NULL
+# ----------------------------------------------------
 
 
-# ---------------------------------------------------
+# -----------------------------------------------------------
 # Manually assess classification for reasonableness
 
 # traffic
 print('Calls classified as TRAFFIC RELATED CALLS:')
-idx = which(oos_preds==34)
-table(unlabeled_x[idx][unlabeled_x[idx]!=''])
+yname = 'initial_type_group_predicted'
+t = table(data[get(yname)=='TRAFFIC RELATED CALLS'][[xname]])
+t[order(t)]
 
 # animals
-print('Calls classified as TRAFFIC RELATED CALLS:')
-idx = which(oos_preds==1)
-table(unlabeled_x[idx][unlabeled_x[idx]!=''])
+print('Calls classified as ANIMAL COMPLAINTS:')
+t = table(data[get(yname)=='ANIMAL COMPLAINTS'][[xname]])
+t[order(t)]
 
 # assault
 print('Calls classified as ASSAULTS:')
-idx = which(oos_preds==2)
-table(unlabeled_x[idx][unlabeled_x[idx]!=''])
+t = table(data[get(yname)=='ASSAULTS'][[xname]])
+t[order(t)]
 
 # crisis
 print('Calls classified as GUN CALLS:')
-idx = which(oos_preds==9)
-table(unlabeled_x[idx][unlabeled_x[idx]!=''])
-# ---------------------------------------------------
+t = table(data[get(yname)=='GUN CALLS'][[xname]])
+t[order(t)]
+# -----------------------------------------------------------
+
+
+# ---------------------
+# Save results
+# (as rds for space)
+saveRDS(data, outFile)
+# ---------------------
