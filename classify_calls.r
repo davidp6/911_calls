@@ -19,7 +19,6 @@ set.seed(1)
 library(data.table)
 library(text2vec)
 library(keras)
-library(feather)
 # --------------------
 
 
