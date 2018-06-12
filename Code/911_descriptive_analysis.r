@@ -28,10 +28,10 @@ library(gridExtra)
 # Files and directories
 
 # input file
-inFile = './classified_data.rds'
+inFile = './Data/Cleaned Data/classified_data.rds'
 
 # output files
-graphFile = './descriptive_analysis.pdf'
+graphFile = './Output/Descriptive Analysis/descriptive_analysis.pdf'
 # ---------------------------------------
 
 

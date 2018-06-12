@@ -26,14 +26,14 @@ library(keras)
 # Files and directories
 
 # input files
-inFileSea = './Seattle_Police_Department_911_Incident_Response.csv'
-inFileBal = './911_Police_Calls_for_Service.csv'
+inFileSea = './Data/Raw Data/Seattle_Police_Department_911_Incident_Response.csv'
+inFileBal = './Data/Raw Data/911_Police_Calls_for_Service.csv'
 
 # model file
-modelFile = './model_fit.rdata'
+modelFile = './Data/Model Files/model_fit.rdata'
 
 # output files
-outFile = './classified_data.rds'
+outFile = './Data/Cleaned Data/classified_data.rds'
 # ---------------------------------------------------------------
 
 

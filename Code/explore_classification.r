@@ -5,6 +5,8 @@
 #
 # Outputs:
 # - a pdf with figures
+#
+# The current working directory should be the root of this repo
 # ----------------------------------------------------------
 
 # to do
@@ -26,10 +28,10 @@ library(gtable)
 # Files and directories
 
 # input files
-inFile = './classified_data.rds'
+inFile = './Data/Cleaned Data/classified_data.rds'
 
 # output files
-graphFile = './classificiation_exploration.pdf'
+graphFile = './Output/Model Diagnostics/classificiation_exploration.pdf'
 # ----------------------------------------------
 
 

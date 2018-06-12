@@ -25,10 +25,10 @@ library(ggplot2)
 # Files and directories
 
 # input file
-inFileSea = './Seattle_Police_Department_911_Incident_Response.csv'
+inFileSea = './Data/Raw Data/Seattle_Police_Department_911_Incident_Response.csv'
 
 # output files
-graphFile = './descriptive_analysis.pdf'
+graphFile = './Data/Model Files/model_testing_output.pdf'
 # ---------------------------------------------------------------
 
 
