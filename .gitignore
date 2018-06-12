@@ -5,3 +5,5 @@
 *.rdata
 .Rapp.history
 *.DS_Store
+*.xlsx
+*.xlsx.gsheet
