@@ -32,8 +32,11 @@ library(ggplot2)
 # input file
 inFileSea = './Data/Raw Data/Seattle_Police_Department_911_Incident_Response.csv'
 
+# file for active learning training data
+inFileActv = './Data/Model Files/active_learning_data.csv'
+
 # output files
-outFile = './Data/Model Fit/model_fit.rdata'
+outFile = './Data/Model Files/model_fit.rdata'
 # ---------------------------------------------------------------
 
 
@@ -55,6 +58,19 @@ setnames(dataSea, c('record_id', 'event_number', 'general_offense_number',
 x = dataSea[initial_type_group!='' & initial_type_description!='']$initial_type_description
 y = dataSea[initial_type_group!='' & initial_type_description!='']$initial_type_group
 # ------------------------------------------------------------
+
+
+# -------------------------------------------------------
+# Include active learning data
+
+# load
+dataActv = fread(inFileActv)
+
+# boost the active learning data by an arbitrary factor
+n = 1000
+x = c(x, rep(dataActv$initial_type_description, n))
+y = c(y, rep(dataActv$initial_type_group, n))
+# -------------------------------------------------------
 
 
 # --------------------------------------------
