@@ -43,6 +43,14 @@ outFile = './model_fit.rdata'
 # load all files
 dataSea = fread(inFileSea)
 
+# rename
+setnames(dataSea, c('record_id', 'event_number', 'general_offense_number',
+		'clearance_code', 'clearance_description', 'clearance_subgroup',
+		'clearance_group', 'call_date_time', 'address', 'district',
+		'zone', 'census_tract', 'longitude', 'latitude', 'location',
+		'initial_type_description', 'initial_type_subgroup',
+		'initial_type_group', 'at_scene_time'))
+
 # subset
 x = dataSea[initial_type_group!='' & initial_type_description!='']$initial_type_description
 y = dataSea[initial_type_group!='' & initial_type_description!='']$initial_type_group
