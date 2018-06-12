@@ -44,8 +44,8 @@ outFile = './model_fit.rdata'
 dataSea = fread(inFileSea)
 
 # subset
-x = dataSea[initial_type_group!='']$initial_type_description
-y = dataSea[initial_type_group!='']$initial_type_group
+x = dataSea[initial_type_group!='' & initial_type_description!='']$initial_type_description
+y = dataSea[initial_type_group!='' & initial_type_description!='']$initial_type_group
 # ------------------------------------------------------------
 
 
